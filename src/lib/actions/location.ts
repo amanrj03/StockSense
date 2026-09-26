@@ -81,13 +81,26 @@ export async function updateLocationAction(
 export async function deleteLocationAction(id: string): Promise<ActionState> {
   await requireAuth();
 
-  // Prevent deletion if stock or operations reference this location
-  const stockCount = await prisma.stock.count({ where: { locationId: id } });
+  const [stockCount, receipts, deliveries, sourceTransfers, destinationTransfers, adjustments, movementsFrom, movementsTo] =
+    await Promise.all([
+      prisma.stock.count({ where: { locationId: id } }),
+      prisma.receipt.count({ where: { toLocationId: id } }),
+      prisma.deliveryOrder.count({ where: { fromLocationId: id } }),
+      prisma.internalTransfer.count({ where: { sourceLocationId: id } }),
+      prisma.internalTransfer.count({ where: { destinationLocationId: id } }),
+      prisma.stockAdjustment.count({ where: { locationId: id } }),
+      prisma.stockMovement.count({ where: { fromLocationId: id } }),
+      prisma.stockMovement.count({ where: { toLocationId: id } }),
+    ]);
   if (stockCount > 0) {
     return { error: "Cannot delete a location that has stock. Perform a stock adjustment first." };
   }
+  if (receipts + deliveries + sourceTransfers + destinationTransfers + adjustments + movementsFrom + movementsTo > 0) {
+    return { error: "Cannot delete a location referenced by operations or movement history" };
+  }
 
-  await prisma.location.delete({ where: { id } });
+  const deleted = await prisma.location.deleteMany({ where: { id } });
+  if (deleted.count !== 1) return { error: "Location no longer exists" };
   revalidatePath("/settings/locations");
   return { success: "Location deleted" };
 }

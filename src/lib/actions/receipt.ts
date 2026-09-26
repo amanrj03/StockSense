@@ -84,7 +84,11 @@ export async function markReceiptReadyAction(id: string): Promise<ActionState> {
   if (!receipt) return { error: "Receipt not found" };
   if (receipt.status !== "DRAFT") return { error: "Only Draft receipts can be marked Ready" };
 
-  await prisma.receipt.update({ where: { id }, data: { status: "READY" } });
+  const changed = await prisma.receipt.updateMany({
+    where: { id, status: "DRAFT" },
+    data: { status: "READY" },
+  });
+  if (changed.count !== 1) return { error: "Receipt changed; reload and try again" };
   revalidatePath(`/operations/receipts/${id}`);
   revalidatePath("/operations/receipts");
   return { success: "Receipt marked as Ready" };
@@ -171,9 +175,15 @@ export async function cancelReceiptAction(id: string): Promise<ActionState> {
 
   const receipt = await prisma.receipt.findUnique({ where: { id }, select: { status: true } });
   if (!receipt) return { error: "Receipt not found" };
-  if (receipt.status === "DONE") return { error: "Cannot cancel a completed receipt" };
+  if (receipt.status === "DONE" || receipt.status === "CANCELED") {
+    return { error: "Cannot cancel a completed or canceled receipt" };
+  }
 
-  await prisma.receipt.update({ where: { id }, data: { status: "CANCELED" } });
+  const changed = await prisma.receipt.updateMany({
+    where: { id, status: { in: ["DRAFT", "READY"] } },
+    data: { status: "CANCELED" },
+  });
+  if (changed.count !== 1) return { error: "Receipt changed; reload and try again" };
   revalidatePath(`/operations/receipts/${id}`);
   revalidatePath("/operations/receipts");
   return { success: "Receipt canceled" };

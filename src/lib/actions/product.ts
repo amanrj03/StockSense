@@ -110,10 +110,22 @@ export async function updateProductAction(
 export async function deleteProductAction(id: string): Promise<ActionState> {
   await requireAuth();
 
-  const stockCount = await prisma.stock.count({ where: { productId: id } });
+  const [stockCount, receiptLines, deliveryLines, transferLines, adjustments, movements] =
+    await Promise.all([
+      prisma.stock.count({ where: { productId: id } }),
+      prisma.receiptLine.count({ where: { productId: id } }),
+      prisma.deliveryOrderLine.count({ where: { productId: id } }),
+      prisma.internalTransferLine.count({ where: { productId: id } }),
+      prisma.stockAdjustment.count({ where: { productId: id } }),
+      prisma.stockMovement.count({ where: { productId: id } }),
+    ]);
   if (stockCount > 0) return { error: "Cannot delete a product that has stock entries" };
+  if (receiptLines + deliveryLines + transferLines + adjustments + movements > 0) {
+    return { error: "Cannot delete a product referenced by operation or movement history" };
+  }
 
-  await prisma.product.delete({ where: { id } });
+  const deleted = await prisma.product.deleteMany({ where: { id } });
+  if (deleted.count !== 1) return { error: "Product no longer exists" };
   revalidatePath("/products");
   return { success: "Product deleted" };
 }

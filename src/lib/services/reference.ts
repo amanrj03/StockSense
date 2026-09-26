@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import type { PrismaClient } from "@/generated/prisma/client";
 
 type TxClient = Omit<

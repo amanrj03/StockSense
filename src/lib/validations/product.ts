@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 export const categorySchema = z.object({
-  name: z.string().min(1, "Name is required").max(100),
+  name: z.string().trim().min(1, "Name is required").max(100),
 });
 
 export const productSchema = z.object({
-  name: z.string().min(1, "Name is required").max(200),
+  name: z.string().trim().min(1, "Name is required").max(200),
   sku: z
     .string()
     .min(1, "SKU is required")
@@ -16,9 +16,11 @@ export const productSchema = z.object({
   perUnitCost: z.coerce
     .number()
     .min(0, "Cost cannot be negative")
+    .max(9999999999.99, "Cost is too large")
+    .multipleOf(0.01, "Cost supports at most two decimal places")
     .default(0),
-  reorderLevel: z.coerce.number().int().min(0).optional().nullable(),
-  reorderQty: z.coerce.number().int().min(0).optional().nullable(),
+  reorderLevel: z.coerce.number().int().min(0).max(2147483647).optional().nullable(),
+  reorderQty: z.coerce.number().int().min(0).max(2147483647).optional().nullable(),
 });
 
 export type CategoryInput = z.infer<typeof categorySchema>;

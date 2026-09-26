@@ -5,7 +5,8 @@ export const deliveryOrderLineSchema = z.object({
   quantity: z.coerce
     .number()
     .positive("Quantity must be greater than 0")
-    .max(999999999.999, "Quantity is too large"),
+    .max(999999999.999, "Quantity is too large")
+    .multipleOf(0.001, "Quantity supports at most three decimal places"),
 });
 
 export const deliveryOrderSchema = z.object({
@@ -16,7 +17,7 @@ export const deliveryOrderSchema = z.object({
     (value) => value === "" ? undefined : value,
     z.enum(["STANDARD_SHIPMENT", "RETURN"]).optional()
   ),
-  scheduleDate: z.string().min(1, "Schedule date is required"),
+  scheduleDate: z.iso.date(),
   lines: z.array(deliveryOrderLineSchema).min(1, "At least one product line is required"),
 });
 

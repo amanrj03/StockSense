@@ -6,7 +6,8 @@ export const stockAdjustmentSchema = z.object({
   physicalQuantity: z.coerce
     .number()
     .min(0, "Physical quantity cannot be negative")
-    .max(999999999.999, "Physical quantity is too large"),
+    .max(999999999.999, "Physical quantity is too large")
+    .multipleOf(0.001, "Physical quantity supports at most three decimal places"),
   reason: z.enum(["DAMAGED", "LOST", "MISCOUNT", "OTHER"]),
   reasonNote: z.string().trim().max(500).optional(),
 });

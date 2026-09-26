@@ -3,6 +3,7 @@ import { z } from "zod";
 export const signInSchema = z.object({
   loginId: z
     .string()
+    .trim()
     .min(6, "Login ID must be at least 6 characters")
     .max(12, "Login ID must be at most 12 characters"),
   password: z.string().min(1, "Password is required"),
@@ -12,6 +13,7 @@ export const signUpSchema = z
   .object({
     loginId: z
       .string()
+      .trim()
       .min(6, "Login ID must be between 6–12 characters")
       .max(12, "Login ID must be between 6–12 characters")
       .regex(

@@ -443,9 +443,9 @@ model StockAdjustment {
 //   DELIVERY    : from=delivery source location,  to=null
 //   TRANSFER_OUT: from=source, to=null
 //   TRANSFER_IN : from=null,   to=destination
-//   ADJUSTMENT  : from=null (negative diff) or to=null (positive diff)
-//                 quantity is the absolute value of the difference;
-//                 sign is implied by movementType direction.
+//   ADJUSTMENT  : negative diff uses from=location, to=null;
+//                 positive diff uses from=null, to=location.
+//                 Quantity is the absolute value of the difference.
 
 model StockMovement {
   id             String         @id @default(cuid())

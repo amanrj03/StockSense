@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { signOut } from "next-auth/react";
@@ -88,7 +89,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           bg-sidebar text-sidebar-foreground
           border-r border-sidebar-border
           transition-transform duration-200
-          lg:static lg:translate-x-0
+          lg:sticky lg:top-0 lg:h-screen lg:shrink-0 lg:translate-x-0
           ${open ? "translate-x-0" : "-translate-x-full"}
         `}
         aria-label="Main navigation"
@@ -96,7 +97,15 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         {/* Brand */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-sidebar-border">
           <Link href="/dashboard" className="flex items-center gap-2" onClick={onClose}>
-            <span className="text-2xl leading-none">🍋</span>
+            <Image
+              src="/lemon_logo.png"
+              alt="Lemon"
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
+              priority
+              unoptimized
+            />
             <span className="text-lg font-semibold tracking-tight text-white">
               Lemon
             </span>

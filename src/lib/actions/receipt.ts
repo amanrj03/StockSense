@@ -8,6 +8,7 @@ import { receiptSchema } from "@/lib/validations/receipt";
 import { generateReference } from "@/lib/services/reference";
 
 type ActionState = { error: string } | { success: string } | undefined;
+class ReceiptWorkflowError extends Error {}
 
 async function requireAuth() {
   const session = await auth();
@@ -107,9 +108,16 @@ export async function validateReceiptAction(id: string): Promise<ActionState> {
   if (receipt.status !== "READY") return { error: "Only Ready receipts can be validated" };
   if (receipt.lines.length === 0) return { error: "Receipt has no product lines" };
 
-  await prisma.$transaction(async (tx) => {
+  try {
+    await prisma.$transaction(async (tx) => {
     // 1. Mark receipt as Done
-    await tx.receipt.update({ where: { id }, data: { status: "DONE" } });
+    const changed = await tx.receipt.updateMany({
+      where: { id, status: "READY" },
+      data: { status: "DONE" },
+    });
+    if (changed.count !== 1) {
+      throw new ReceiptWorkflowError("Receipt changed; reload before validating");
+    }
 
     // 2. For each line: upsert Stock + create StockMovement
     for (const line of receipt.lines) {
@@ -144,7 +152,11 @@ export async function validateReceiptAction(id: string): Promise<ActionState> {
         },
       });
     }
-  });
+    });
+  } catch (error) {
+    if (error instanceof ReceiptWorkflowError) return { error: error.message };
+    throw error;
+  }
 
   revalidatePath(`/operations/receipts/${id}`);
   revalidatePath("/operations/receipts");

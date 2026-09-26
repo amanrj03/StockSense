@@ -331,11 +331,13 @@ export async function getDashboardData(filters: DashboardFilters): Promise<{
     fill: type === "RECEIPT" ? "#34d399" : type === "DELIVERY" ? "#f59e0b" : type === "TRANSFER" ? "#a78bfa" : "#38bdf8",
   }));
 
-  const lowStockItems: DashboardLowStockItem[] = quantities
+  const lowStockCandidates = quantities
     .filter(({ onHand, reorderLevel }) => onHand <= (reorderLevel ?? 0) || onHand === 0)
-    .sort((a, b) => a.onHand - b.onHand)
-    .slice(0, 5)
-    .map((item) => ({
+    .sort((a, b) => a.onHand - b.onHand);
+  const lowStockItems: DashboardLowStockItem[] = [
+    ...lowStockCandidates.filter(({ onHand }) => onHand === 0).slice(0, 2),
+    ...lowStockCandidates.filter(({ onHand }) => onHand > 0).slice(0, 3),
+  ].map((item) => ({
       name: item.name,
       category: item.category,
       onHand: item.onHand,

@@ -33,14 +33,13 @@ export default function TopHeader({ onMenuToggle }: TopHeaderProps) {
 
       <div className="ml-auto flex items-center gap-1">
         {/* Notifications */}
-        <button
+        <Link
+          href="/notifications"
           className="relative rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           aria-label="Notifications"
         >
           <MdNotificationsNone size={22} />
-          {/* Badge placeholder — will be wired to real data in a later milestone */}
-          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-[var(--color-lemon)]" aria-hidden="true" />
-        </button>
+        </Link>
 
         {/* Profile */}
         <Link

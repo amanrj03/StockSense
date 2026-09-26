@@ -112,6 +112,7 @@ export default async function DeliveryOrdersPage({
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Reference</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">From</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">To</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Contact</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Schedule Date</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Lines</th>
@@ -129,6 +130,7 @@ export default async function DeliveryOrdersPage({
                   <td className="px-4 py-3 text-muted-foreground">
                     {order.fromLocation.warehouse.shortCode}/{order.fromLocation.shortCode}
                   </td>
+                  <td className="px-4 py-3 text-muted-foreground">{order.deliveryAddress || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{order.contact}</td>
                   <td className="px-4 py-3 text-muted-foreground">{order.scheduleDate.toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-muted-foreground">{order._count.lines}</td>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { MdCheckCircle, MdPlayArrow, MdCancel } from "react-icons/md";
+import { MdCheckCircle, MdPlayArrow, MdCancel, MdPrint } from "react-icons/md";
 import {
   markReceiptReadyAction,
   validateReceiptAction,
@@ -26,7 +26,24 @@ export default function ReceiptActions({ id, status }: Props) {
     });
   }
 
-  if (status === "DONE" || status === "CANCELED") return null;
+  const printButton = (
+    <button
+      type="button"
+      onClick={() => window.print()}
+      className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+    >
+      <MdPrint size={18} aria-hidden="true" />
+      Print
+    </button>
+  );
+
+  if (status === "DONE" || status === "CANCELED") {
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        {printButton}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-3">
@@ -35,6 +52,8 @@ export default function ReceiptActions({ id, status }: Props) {
           {error}
         </p>
       )}
+
+      {printButton}
 
       {status === "DRAFT" && (
         <button

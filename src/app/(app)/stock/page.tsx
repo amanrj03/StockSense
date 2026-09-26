@@ -44,6 +44,7 @@ export default async function StockPage() {
       name: p.name,
       sku: p.sku,
       unitOfMeasure: p.unitOfMeasure,
+      perUnitCost: Number(p.perUnitCost),
       category: p.category?.name ?? null,
       reorderLevel: p.reorderLevel,
       totalOnHand,

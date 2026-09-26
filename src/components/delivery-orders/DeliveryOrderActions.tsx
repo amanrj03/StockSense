@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { MdCancel, MdCheckCircle, MdInventory2, MdLocalShipping, MdPlayArrow } from "react-icons/md";
+import { MdCancel, MdCheckCircle, MdInventory2, MdLocalShipping, MdPlayArrow, MdPrint } from "react-icons/md";
 import {
   cancelDeliveryOrderAction,
   markDeliveryOrderPackedAction,
@@ -41,7 +41,23 @@ export default function DeliveryOrderActions({ id, status, pickedAt, packedAt }:
     });
   }
 
-  if (status === "DONE" || status === "CANCELED") return null;
+  const printButton = (
+    <button
+      type="button"
+      onClick={() => window.print()}
+      className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60"
+    >
+      <MdPrint size={17} aria-hidden="true" /> Print
+    </button>
+  );
+
+  if (status === "DONE" || status === "CANCELED") {
+    return (
+      <section aria-label="Delivery Order workflow" className="space-y-3 border-t border-border pt-5">
+        <div className="flex flex-wrap items-center gap-3">{printButton}</div>
+      </section>
+    );
+  }
 
   return (
     <section aria-label="Delivery Order workflow" className="space-y-3 border-t border-border pt-5">
@@ -49,6 +65,7 @@ export default function DeliveryOrderActions({ id, status, pickedAt, packedAt }:
       {message && <p role="status" className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">{message}</p>}
 
       <div className="flex flex-wrap items-center gap-3">
+        {printButton}
         {(status === "DRAFT" || status === "WAITING") && (
           <button type="button" onClick={() => run(prepareDeliveryOrderAction)} disabled={pending} className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60">
             {pending ? <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <MdPlayArrow size={18} aria-hidden="true" />}

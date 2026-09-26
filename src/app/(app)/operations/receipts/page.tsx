@@ -50,8 +50,9 @@ export default async function ReceiptsPage() {
             <thead className="bg-muted/50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Reference</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">From / Receive From</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">To Location</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Contact</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Responsible</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Schedule Date</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Lines</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
@@ -80,10 +81,11 @@ export default async function ReceiptsPage() {
                         </span>
                       )}
                     </td>
+                    <td className="px-4 py-3 text-muted-foreground">{r.contact || "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {r.toLocation.warehouse.shortCode}/{r.toLocation.shortCode}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{r.contact}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{r.responsible.loginId}</td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {r.scheduleDate.toLocaleDateString()}
                     </td>

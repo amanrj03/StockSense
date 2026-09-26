@@ -25,6 +25,7 @@ interface ProductStock {
   name: string;
   sku: string;
   unitOfMeasure: string;
+  perUnitCost: number;
   category: string | null;
   reorderLevel: number | null;
   totalOnHand: number;
@@ -92,6 +93,7 @@ export default function StockTable({ products }: { products: ProductStock[] }) {
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">SKU</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">Category</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">UoM</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Cost</th>
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">On Hand</th>
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">Reserved</th>
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">Free to Use</th>
@@ -128,6 +130,7 @@ export default function StockTable({ products }: { products: ProductStock[] }) {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">{p.category ?? "—"}</td>
                       <td className="px-4 py-3 text-muted-foreground">{p.unitOfMeasure}</td>
+                      <td className="px-4 py-3 text-right font-medium text-foreground">₹ {p.perUnitCost.toLocaleString()}</td>
                       <td className="px-4 py-3 text-right font-medium text-foreground">{p.totalOnHand.toLocaleString()}</td>
                       <td className="px-4 py-3 text-right text-orange-600 dark:text-orange-400">
                         {p.totalReserved > 0 ? p.totalReserved.toLocaleString() : "—"}

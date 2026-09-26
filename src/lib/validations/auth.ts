@@ -18,7 +18,7 @@ export const signUpSchema = z
         /^[a-zA-Z0-9_]+$/,
         "Login ID can only contain letters, numbers, and underscores"
       ),
-    email: z.string().email("Enter a valid email address"),
+    email: z.string().trim().email("Enter a valid email address").transform((email) => email.toLowerCase()),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
@@ -36,12 +36,13 @@ export const signUpSchema = z
   });
 
 export const forgotPasswordSchema = z.object({
-  email: z.string().email("Enter a valid email address"),
+  email: z.string().trim().email("Enter a valid email address").transform((email) => email.toLowerCase()),
 });
 
 export const resetPasswordSchema = z
   .object({
-    token: z.string().min(1),
+    email: z.string().trim().email("Enter a valid email address").transform((email) => email.toLowerCase()),
+    token: z.string().regex(/^\d{6}$/, "Enter the 6-digit OTP"),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")

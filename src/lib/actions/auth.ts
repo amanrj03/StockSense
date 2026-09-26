@@ -6,7 +6,23 @@ import { signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { signUpSchema, forgotPasswordSchema, resetPasswordSchema } from "@/lib/validations/auth";
 import { AuthError } from "next-auth";
-import crypto from "crypto";
+import { createHmac, randomInt, timingSafeEqual } from "crypto";
+import { Resend } from "resend";
+
+const resetSuccessMessage = "If that email exists, a reset link has been sent.";
+const resetTokenLifetimeMs = 15 * 60 * 1000;
+const resetResendCooldownMs = 60 * 1000;
+const resetMaxAttempts = 5;
+
+function hashResetToken(email: string, token: string): string {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) throw new Error("AUTH_SECRET is required to protect reset tokens");
+  return createHmac("sha256", secret).update(`${email}:${token}`).digest("hex");
+}
+
+function isPrismaUniqueError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "P2002";
+}
 
 // ─── Sign Up ──────────────────────────────────────────────────────────────────
 
@@ -44,9 +60,12 @@ export async function signUpAction(
 
   const passwordHash = await hash(password, 12);
 
-  await prisma.user.create({
-    data: { loginId, email, passwordHash },
-  });
+  try {
+    await prisma.user.create({ data: { loginId, email, passwordHash } });
+  } catch (error) {
+    if (isPrismaUniqueError(error)) return { error: "Login ID or email is already registered" };
+    throw error;
+  }
 
   redirect("/login?registered=1");
 }
@@ -88,24 +107,49 @@ export async function forgotPasswordAction(
 
   // Always return success to prevent email enumeration
   if (!user) {
-    return { success: "If that email exists, a reset link has been sent." };
+    return { success: resetSuccessMessage };
   }
 
-  // Generate OTP token (6-digit)
-  const token = crypto.randomInt(100000, 999999).toString();
-  const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!apiKey || !from) return { success: resetSuccessMessage };
 
-  await prisma.verificationToken.upsert({
-    where: { identifier_token: { identifier: email, token } },
-    update: { expires },
-    create: { identifier: email, token, expires },
+  const latestToken = await prisma.verificationToken.findFirst({
+    where: { identifier: email },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  if (latestToken && Date.now() - latestToken.createdAt.getTime() < resetResendCooldownMs) {
+    return { success: resetSuccessMessage };
+  }
+
+  const token = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  const tokenHash = hashResetToken(email, token);
+  const expires = new Date(Date.now() + resetTokenLifetimeMs);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.verificationToken.deleteMany({ where: { identifier: email } });
+    await tx.verificationToken.create({
+      data: { identifier: email, token: tokenHash, expires, attempts: 0 },
+    });
   });
 
-  // TODO: send email via Resend in email milestone
-  // For now, token is stored — dev can read it from DB
-  console.info(`[DEV] OTP for ${email}: ${token}`);
+  try {
+    const { error } = await new Resend(apiKey).emails.send({
+      from,
+      to: email,
+      subject: "Your Lemon password reset code",
+      text: `Your Lemon password reset code is ${token}. It expires in 15 minutes. If you did not request this, ignore this email.`,
+    });
+    if (error) throw error;
+  } catch {
+    await prisma.verificationToken.deleteMany({
+      where: { identifier: email, token: tokenHash },
+    });
+    console.error("Password reset email delivery failed.");
+  }
 
-  return { success: "If that email exists, a reset link has been sent." };
+  return { success: resetSuccessMessage };
 }
 
 // ─── Reset Password ───────────────────────────────────────────────────────────
@@ -115,6 +159,7 @@ export async function resetPasswordAction(
   formData: FormData
 ): Promise<{ error: string } | undefined> {
   const raw = {
+    email: formData.get("email"),
     token: formData.get("token"),
     password: formData.get("password"),
     confirmPassword: formData.get("confirmPassword"),
@@ -125,16 +170,37 @@ export async function resetPasswordAction(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { token, password } = parsed.data;
-  const email = formData.get("email") as string;
-
-  if (!email) return { error: "Invalid reset request" };
-
-  const record = await prisma.verificationToken.findUnique({
-    where: { identifier_token: { identifier: email, token } },
+  const { email, token, password } = parsed.data;
+  const record = await prisma.verificationToken.findFirst({
+    where: { identifier: email },
+    orderBy: { createdAt: "desc" },
   });
 
-  if (!record || record.expires < new Date()) {
+  if (!record || record.expires <= new Date()) {
+    return { error: "OTP is invalid or has expired" };
+  }
+  if (record.attempts >= resetMaxAttempts) {
+    return { error: "Too many invalid OTP attempts. Request a new code." };
+  }
+
+  const submittedHash = hashResetToken(email, token);
+  const storedHash = /^[a-f0-9]{64}$/i.test(record.token)
+    ? Buffer.from(record.token, "hex")
+    : Buffer.alloc(0);
+  const submittedHashBytes = Buffer.from(submittedHash, "hex");
+  const tokenMatches = storedHash.length === submittedHashBytes.length
+    && timingSafeEqual(storedHash, submittedHashBytes);
+
+  if (!tokenMatches) {
+    await prisma.verificationToken.updateMany({
+      where: {
+        identifier: email,
+        token: record.token,
+        expires: { gt: new Date() },
+        attempts: { lt: resetMaxAttempts },
+      },
+      data: { attempts: { increment: 1 } },
+    });
     return { error: "OTP is invalid or has expired" };
   }
 
@@ -143,12 +209,20 @@ export async function resetPasswordAction(
 
   const passwordHash = await hash(password, 12);
 
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
-    prisma.verificationToken.delete({
-      where: { identifier_token: { identifier: email, token } },
-    }),
-  ]);
+  const resetCompleted = await prisma.$transaction(async (tx) => {
+    const consumed = await tx.verificationToken.deleteMany({
+      where: {
+        identifier: email,
+        token: record.token,
+        expires: { gt: new Date() },
+        attempts: { lt: resetMaxAttempts },
+      },
+    });
+    if (consumed.count !== 1) return false;
+    await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
+    return true;
+  });
+  if (!resetCompleted) return { error: "OTP is invalid or has expired" };
 
   redirect("/login?reset=1");
 }

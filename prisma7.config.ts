@@ -3,12 +3,19 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+const runtimeUrl = process.env["DATABASE_URL"];
+const runtimeHost = runtimeUrl ? new URL(runtimeUrl).hostname.toLowerCase() : "";
+const isLocalPostgres = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(runtimeHost);
+const migrationUrl = isLocalPostgres
+  ? runtimeUrl
+  : process.env["DIRECT_URL"] ?? runtimeUrl;
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DIRECT_URL"],
+    url: migrationUrl,
   },
 });

@@ -33,7 +33,7 @@ export default function ProductDialog({ product, categories, onClose }: Props) {
     <dialog
       ref={dialogRef}
       onClose={onClose}
-      className="w-full max-w-lg rounded-xl border border-border bg-card p-0 shadow-lg backdrop:bg-black/40"
+      className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-lg backdrop:bg-black/40"
     >
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <h2 className="text-base font-semibold text-foreground">
@@ -47,9 +47,9 @@ export default function ProductDialog({ product, categories, onClose }: Props) {
       <form action={formAction} className="px-5 py-5 space-y-4">
         {product && <input type="hidden" name="id" value={product.id} />}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {/* Name */}
-          <div className="col-span-2 space-y-1">
+          <div className="space-y-1 sm:col-span-2">
             <label htmlFor="p-name" className="block text-sm font-medium text-foreground">
               Name <span className="text-destructive">*</span>
             </label>

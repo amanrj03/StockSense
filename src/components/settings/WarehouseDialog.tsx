@@ -35,7 +35,7 @@ export default function WarehouseDialog({ warehouse, onClose }: Props) {
     <dialog
       ref={dialogRef}
       onClose={onClose}
-      className="w-full max-w-md rounded-xl border border-border bg-card p-0 shadow-lg backdrop:bg-black/40"
+      className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-lg backdrop:bg-black/40"
     >
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <h2 className="text-base font-semibold text-foreground">

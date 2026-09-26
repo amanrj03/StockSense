@@ -9,7 +9,7 @@ interface TopHeaderProps {
 
 export default function TopHeader({ onMenuToggle }: TopHeaderProps) {
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-background px-4 shadow-sm">
+    <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b border-border bg-background px-3 shadow-sm sm:gap-3 sm:px-4">
       {/* Mobile menu button */}
       <button
         onClick={onMenuToggle}
@@ -20,13 +20,13 @@ export default function TopHeader({ onMenuToggle }: TopHeaderProps) {
       </button>
 
       {/* Search */}
-      <form action="/search" method="get" role="search" className="flex flex-1 items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5 max-w-md">
+      <form action="/search" method="get" role="search" className="flex min-w-0 max-w-md flex-1 items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5">
         <MdSearch size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
         <input
           type="search"
           name="q"
           placeholder="Search products, references, contacts..."
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           aria-label="Global search"
         />
       </form>
@@ -47,7 +47,7 @@ export default function TopHeader({ onMenuToggle }: TopHeaderProps) {
           className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           aria-label="My profile"
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--color-lemon)] text-[var(--color-lemon-foreground)]">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-(--color-lemon) text-(--color-lemon-foreground)">
             <MdPerson size={16} />
           </span>
         </Link>

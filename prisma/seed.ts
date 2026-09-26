@@ -21,6 +21,14 @@ const warehouseSpecs = [
   ["West Service Warehouse", "WSW", "63 Freight Corridor, Surat"], ["East Service Warehouse", "ESW", "8 Riverfront Logistics Hub, Kolkata"],
 ] as const;
 const categoryNames = ["Raw Materials", "Electrical Components", "Mechanical Components", "Fasteners", "Tools", "Safety Equipment", "Packaging Materials", "Consumables", "Office Supplies", "Finished Goods", "Spare Parts", "Industrial Components", "Maintenance Supplies", "Process Chemicals", "Pneumatics", "Hydraulics", "Welding Supplies", "Cables and Wiring"];
+const categoryByFamily: Record<string, string> = {
+  SS: "Raw Materials", MS: "Raw Materials", CBL: "Cables and Wiring", SW: "Electrical Components",
+  BRG: "Mechanical Components", HOS: "Hydraulics", BLT: "Fasteners", NUT: "Fasteners",
+  DRL: "Tools", WRE: "Tools", GLV: "Safety Equipment", HLM: "Safety Equipment",
+  BOX: "Packaging Materials", TAP: "Packaging Materials", LUB: "Maintenance Supplies",
+  PAP: "Office Supplies", MTR: "Finished Goods", FLT: "Spare Parts",
+};
+const productSeries = ["Standard Grade", "Premium Grade", "Heavy Duty", "Export Grade", "Reinforced", "Precision", "Industrial", "High Temperature", "Corrosion Resistant", "Workshop", "Production", "Service", "Compact", "Extended Life", "Eco Line", "Certified", "High Flow", "General Purpose"];
 const families = [
   ["RM", "SS", "Stainless Steel", "kg", 145, 580, ["304 2mm Sheet", "316 1.5mm Sheet", "304 Round Bar 25mm", "316 Flat Bar 40mm", "304 Coil 1mm"]],
   ["RM", "MS", "Mild Steel", "kg", 72, 280, ["Angle 40x40x5mm", "Channel 75mm", "Plate 6mm", "Round Bar 20mm", "Square Tube 50mm"]],
@@ -59,7 +67,6 @@ async function main() {
   const adjustmentMarker = adjustmentCount >= 90;
   const profileBaseMarker = await prisma.stockAdjustment.findUnique({ where: { reference: "CDW/ADJ/0100" }, select: { id: true } });
   const profileMarker = await prisma.stockAdjustment.findUnique({ where: { reference: "CDW/ADJ/0200" }, select: { id: true } });
-  if (receiptMarker && deliveryMarker && transferMarker && adjustmentMarker && profileMarker) { console.log("Seed skipped: the large Lemon development dataset is already present."); return; }
 
   const next = random(20260926);
   const passwordHash = hashSync("Lemon123!", 10);
@@ -84,7 +91,9 @@ async function main() {
     const family = families[index % families.length];
     const [prefix, code, baseName, unitOfMeasure, minCost, maxCost, variants] = family;
     const sku = `${prefix}-${code}-${String(index + 1).padStart(3, "0")}`;
-    products.push(await prisma.product.upsert({ where: { sku }, update: {}, create: { sku, name: `${baseName} ${variants[Math.floor(index / families.length) % variants.length]}`, categoryId: categories[index % categories.length].id, unitOfMeasure, perUnitCost: decimal(minCost + next() * (maxCost - minCost)), reorderLevel: 8 + (index % 8) * 4, reorderQty: 40 + (index % 6) * 20 } }));
+    const name = `${baseName} ${variants[Math.floor(index / families.length) % variants.length]} ${productSeries[Math.floor(index / families.length)]}`;
+    const category = categories.find((item) => item.name === categoryByFamily[code])!;
+    products.push(await prisma.product.upsert({ where: { sku }, update: { name, categoryId: category.id, unitOfMeasure }, create: { sku, name, categoryId: category.id, unitOfMeasure, perUnitCost: decimal(minCost + next() * (maxCost - minCost)), reorderLevel: 8 + (index % 8) * 4, reorderQty: 40 + (index % 6) * 20 } }));
   }
 
   const stock = new Map<string, StockState>();

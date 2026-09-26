@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { signOut } from "next-auth/react";
 import {
   MdDashboard,
   MdInventory2,
@@ -10,11 +11,8 @@ import {
   MdHistory,
   MdExpandMore,
   MdExpandLess,
-  MdCallReceived,
-  MdLocalShipping,
   MdSwapHoriz,
   MdTune,
-  MdLocationOn,
   MdLogout,
   MdPerson,
   MdClose,
@@ -199,6 +197,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             Profile
           </Link>
           <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
             className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium
               text-[var(--sidebar-foreground)] transition-colors
               hover:bg-red-500/10 hover:text-red-400"

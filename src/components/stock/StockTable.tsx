@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   MdSearch,
   MdExpandMore,
@@ -165,9 +166,9 @@ export default function StockTable({ products }: { products: ProductStock[] }) {
 
       <p className="mt-3 text-xs text-muted-foreground">
         Stock is read-only. To correct quantities, use{" "}
-        <a href="/operations/adjustments" className="text-primary hover:underline">
+        <Link href="/operations/adjustments" className="text-primary hover:underline">
           Stock Adjustments
-        </a>.
+        </Link>.
       </p>
     </div>
   );

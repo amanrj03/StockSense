@@ -11,6 +11,7 @@ import {
   type DashboardDocumentType,
   type DashboardStatus,
 } from "@/lib/services/dashboard";
+import DashboardCharts from "@/components/dashboard/DashboardCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
     locationId: firstParam(params.locationId),
     categoryId: firstParam(params.categoryId),
   };
-  const { kpis, summaries, options } = await getDashboardData(filters);
+  const { kpis, summaries, options, charts } = await getDashboardData(filters);
   const kpiCards = [
     {
       label: "Total Products in Stock",
@@ -206,6 +207,62 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             })}
           </div>
         )}
+      </section>
+
+      <DashboardCharts data={charts} kpis={kpis} />
+
+      <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1.5fr_1fr]">
+        <article className="rounded-lg border border-border bg-card p-4">
+          <div className="mb-3">
+            <h2 className="text-lg font-semibold text-foreground">Low-stock watchlist</h2>
+            <p className="text-sm text-muted-foreground">Products at or below reorder threshold</p>
+          </div>
+          {charts.lowStockItems.length === 0 ? (
+            <p className="rounded-md border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">No low-stock items in the selected scope.</p>
+          ) : (
+            <div className="space-y-3">
+              {charts.lowStockItems.map((item) => (
+                <div key={`${item.name}-${item.location}`} className="flex items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2">
+                  <div>
+                    <p className="font-medium text-foreground">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">{item.category ?? "Uncategorized"} · {item.location}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-amber-700 dark:text-amber-300">{item.onHand}</p>
+                    <p className="text-xs text-muted-foreground">Reorder {item.reorderLevel ?? 0}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="rounded-lg border border-border bg-card p-4">
+          <div className="mb-3">
+            <h2 className="text-lg font-semibold text-foreground">Operational pulse</h2>
+            <p className="text-sm text-muted-foreground">Selected scope snapshot</p>
+          </div>
+          <div className="space-y-4">
+            <div className="rounded-md bg-muted/40 p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Pending receipts</span>
+                <span className="font-semibold text-foreground">{kpis.pendingReceipts}</span>
+              </div>
+            </div>
+            <div className="rounded-md bg-muted/40 p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Pending deliveries</span>
+                <span className="font-semibold text-foreground">{kpis.pendingDeliveryOrders}</span>
+              </div>
+            </div>
+            <div className="rounded-md bg-muted/40 p-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Scheduled transfers</span>
+                <span className="font-semibold text-foreground">{kpis.scheduledInternalTransfers}</span>
+              </div>
+            </div>
+          </div>
+        </article>
       </section>
     </div>
   );

@@ -57,6 +57,34 @@ export interface DashboardOperationSummary {
   canceled: number;
 }
 
+export interface DashboardChartPoint {
+  date: string;
+  incoming: number;
+  outgoing: number;
+  net: number;
+}
+
+export interface DashboardChartSerie {
+  name: string;
+  value: number;
+  fill?: string;
+}
+
+export interface DashboardLowStockItem {
+  name: string;
+  category: string | null;
+  onHand: number;
+  reorderLevel: number | null;
+  location: string;
+}
+
+export interface DashboardCharts {
+  stockByCategory: DashboardChartSerie[];
+  movementTrend: DashboardChartPoint[];
+  operationMix: DashboardChartSerie[];
+  lowStockItems: DashboardLowStockItem[];
+}
+
 function resolveStatus<T extends string>(
   requested: DashboardStatus,
   supported: readonly T[]
@@ -97,6 +125,7 @@ export async function getDashboardData(filters: DashboardFilters): Promise<{
     locations: { id: string; name: string; shortCode: string; warehouse: { shortCode: string } }[];
     categories: { id: string; name: string }[];
   };
+  charts: DashboardCharts;
 }> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -120,13 +149,16 @@ export async function getDashboardData(filters: DashboardFilters): Promise<{
       prisma.product.findMany({
         where: filters.categoryId ? { categoryId: filters.categoryId } : undefined,
         select: {
+          id: true,
+          name: true,
+          category: { select: { name: true } },
           reorderLevel: true,
           stockEntries: {
             where: {
               ...(filters.locationId ? { locationId: filters.locationId } : {}),
               ...(filters.warehouseId ? { location: { warehouseId: filters.warehouseId } } : {}),
             },
-            select: { onHand: true },
+            select: { onHand: true, location: { select: { name: true } } },
           },
         },
       }),
@@ -196,8 +228,12 @@ export async function getDashboardData(filters: DashboardFilters): Promise<{
     ]);
 
   const quantities = products.map((product) => ({
+    productId: product.id,
+    name: product.name,
+    category: product.category?.name ?? "Uncategorized",
     reorderLevel: product.reorderLevel,
     onHand: product.stockEntries.reduce((total, entry) => total + Number(entry.onHand), 0),
+    location: product.stockEntries[0]?.location?.name ?? "Unassigned",
   }));
   const transferSummary = summarizeOperations(transferRows, today);
   const summaries = ([
@@ -230,6 +266,83 @@ export async function getDashboardData(filters: DashboardFilters): Promise<{
     },
   ] satisfies DashboardOperationSummary[]).filter(({ type }) => selected(type));
 
+  const categoryTotals = new Map<string, number>();
+  for (const product of quantities) {
+    if (product.onHand > 0) {
+      categoryTotals.set(product.category, (categoryTotals.get(product.category) ?? 0) + product.onHand);
+    }
+  }
+
+  const movementWindow = new Date();
+  movementWindow.setHours(0, 0, 0, 0);
+  movementWindow.setDate(movementWindow.getDate() - 6);
+
+  const movements = await prisma.stockMovement.findMany({
+    where: {
+      createdAt: { gte: movementWindow },
+      ...(filters.locationId || filters.warehouseId
+        ? {
+            OR: [
+              ...(filters.locationId ? [{ fromLocationId: filters.locationId }, { toLocationId: filters.locationId }] : []),
+              ...(filters.warehouseId
+                ? [{ fromLocation: { warehouseId: filters.warehouseId } }, { toLocation: { warehouseId: filters.warehouseId } }]
+                : []),
+            ],
+          }
+        : {}),
+    },
+    select: { createdAt: true, movementType: true, quantity: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const movementTrend: DashboardChartPoint[] = Array.from({ length: 7 }, (_, index) => {
+    const target = new Date();
+    target.setHours(0, 0, 0, 0);
+    target.setDate(target.getDate() - (6 - index));
+
+    const activeRows = movements.filter((movement) => {
+      const created = new Date(movement.createdAt);
+      created.setHours(0, 0, 0, 0);
+      return created.getTime() === target.getTime();
+    });
+
+    const incoming = activeRows
+      .filter(
+        ({ movementType }) => movementType === "RECEIPT" || movementType === "TRANSFER_IN"
+      )
+      .reduce((total, movement) => total + Number(movement.quantity), 0);
+    const outgoing = activeRows
+      .filter(
+        ({ movementType }) => movementType === "DELIVERY" || movementType === "TRANSFER_OUT"
+      )
+      .reduce((total, movement) => total + Number(movement.quantity), 0);
+
+    return {
+      date: target.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      incoming,
+      outgoing,
+      net: incoming - outgoing,
+    };
+  });
+
+  const operationMix: DashboardChartSerie[] = summaries.map(({ type, label, total }) => ({
+    name: label,
+    value: total,
+    fill: type === "RECEIPT" ? "#34d399" : type === "DELIVERY" ? "#f59e0b" : type === "TRANSFER" ? "#a78bfa" : "#38bdf8",
+  }));
+
+  const lowStockItems: DashboardLowStockItem[] = quantities
+    .filter(({ onHand, reorderLevel }) => onHand <= (reorderLevel ?? 0) || onHand === 0)
+    .sort((a, b) => a.onHand - b.onHand)
+    .slice(0, 5)
+    .map((item) => ({
+      name: item.name,
+      category: item.category,
+      onHand: item.onHand,
+      reorderLevel: item.reorderLevel,
+      location: item.location,
+    }));
+
   return {
     kpis: {
       totalProductsInStock: quantities.filter(({ onHand }) => onHand > 0).length,
@@ -246,5 +359,14 @@ export async function getDashboardData(filters: DashboardFilters): Promise<{
     },
     summaries,
     options: { warehouses, locations, categories },
+    charts: {
+      stockByCategory: [...categoryTotals.entries()].map(([name, value]) => ({
+        name,
+        value,
+      })),
+      movementTrend,
+      operationMix,
+      lowStockItems,
+    },
   };
 }

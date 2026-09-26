@@ -333,6 +333,8 @@ model DeliveryOrder {
   responsibleId   String
   responsible     User                @relation(fields: [responsibleId], references: [id])
   status          DeliveryOrderStatus @default(DRAFT)
+  pickedAt        DateTime?
+  packedAt        DateTime?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 

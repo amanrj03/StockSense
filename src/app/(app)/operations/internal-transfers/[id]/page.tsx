@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MdArrowBack } from "react-icons/md";
+import InternalTransferActions from "@/components/internal-transfers/InternalTransferActions";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { prisma } from "@/lib/prisma";
 
@@ -110,6 +111,8 @@ export default async function InternalTransferDetailPage(
           </tbody>
         </table>
       </section>
+
+      <InternalTransferActions id={transfer.id} status={transfer.status} />
     </div>
   );
 }

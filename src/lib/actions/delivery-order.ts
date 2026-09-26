@@ -9,6 +9,9 @@ import { deliveryOrderSchema } from "@/lib/validations/delivery-order";
 
 type ActionState = { error: string } | { success: string } | undefined;
 type Demand = { productId: string; quantity: number };
+type PreparationResult = { error: string } | { waiting: true } | { ready: true };
+
+class DeliveryOrderWorkflowError extends Error {}
 
 async function requireAuth() {
   const session = await auth();
@@ -92,7 +95,9 @@ export async function createDeliveryOrderAction(
 export async function prepareDeliveryOrderAction(id: string): Promise<ActionState> {
   await requireAuth();
 
-  const result = await prisma.$transaction(async (tx) => {
+  let result: PreparationResult;
+  try {
+    result = await prisma.$transaction(async (tx) => {
     const order = await tx.deliveryOrder.findUnique({
       where: { id },
       select: {
@@ -128,14 +133,18 @@ export async function prepareDeliveryOrderAction(id: string): Promise<ActionStat
     });
 
     if (unavailable) {
-      await tx.deliveryOrder.update({ where: { id }, data: { status: "WAITING" } });
+      const changed = await tx.deliveryOrder.updateMany({
+        where: { id, status: { in: ["DRAFT", "WAITING"] } },
+        data: { status: "WAITING" },
+      });
+      if (changed.count !== 1) return { error: "Delivery Order changed; reload and try again" } as const;
       return { waiting: true } as const;
     }
 
     for (let index = 0; index < demand.length; index += 1) {
       const line = demand[index];
       const stock = stocks[index];
-      if (!stock) throw new Error("Stock changed while preparing the delivery order");
+      if (!stock) throw new DeliveryOrderWorkflowError("Stock changed; reload and check availability again");
 
       const update = await tx.stock.updateMany({
         where: {
@@ -146,19 +155,28 @@ export async function prepareDeliveryOrderAction(id: string): Promise<ActionStat
         },
         data: { reserved: { increment: line.quantity } },
       });
-      if (update.count !== 1) throw new Error("Stock changed while preparing the delivery order");
+      if (update.count !== 1) {
+        throw new DeliveryOrderWorkflowError("Stock changed; reload and check availability again");
+      }
     }
 
-    await tx.deliveryOrder.update({
-      where: { id },
+    const changed = await tx.deliveryOrder.updateMany({
+      where: { id, status: { in: ["DRAFT", "WAITING"] } },
       data: { status: "READY", pickedAt: null, packedAt: null },
     });
+    if (changed.count !== 1) {
+      throw new DeliveryOrderWorkflowError("Delivery Order changed; reload and try again");
+    }
     return { ready: true } as const;
-  });
+    });
+  } catch (error) {
+    if (error instanceof DeliveryOrderWorkflowError) return { error: error.message };
+    throw error;
+  }
 
   if ("error" in result && result.error) return { error: result.error };
   revalidateDeliveryPaths(id);
-  return result.waiting
+  return "waiting" in result
     ? { success: "Waiting for sufficient stock" }
     : { success: "Delivery Order is ready to pick" };
 }
@@ -188,7 +206,8 @@ export async function markDeliveryOrderPackedAction(id: string): Promise<ActionS
 export async function validateDeliveryOrderAction(id: string): Promise<ActionState> {
   await requireAuth();
 
-  await prisma.$transaction(async (tx) => {
+  try {
+    await prisma.$transaction(async (tx) => {
     const order = await tx.deliveryOrder.findUnique({
       where: { id },
       select: {
@@ -199,11 +218,11 @@ export async function validateDeliveryOrderAction(id: string): Promise<ActionSta
         lines: { select: { productId: true, quantity: true } },
       },
     });
-    if (!order) throw new Error("Delivery Order not found");
+    if (!order) throw new DeliveryOrderWorkflowError("Delivery Order not found");
     if (order.status !== "READY" || !order.pickedAt || !order.packedAt) {
-      throw new Error("Pick and pack the order before validating it");
+      throw new DeliveryOrderWorkflowError("Pick and pack the order before validating it");
     }
-    if (order.lines.length === 0) throw new Error("Delivery Order has no product lines");
+    if (order.lines.length === 0) throw new DeliveryOrderWorkflowError("Delivery Order has no product lines");
 
     const demand = aggregateDemand(order.lines.map((line) => ({
       productId: line.productId,
@@ -223,10 +242,18 @@ export async function validateDeliveryOrderAction(id: string): Promise<ActionSta
           reserved: { decrement: line.quantity },
         },
       });
-      if (update.count !== 1) throw new Error("Reserved stock changed; delivery was not completed");
+      if (update.count !== 1) {
+        throw new DeliveryOrderWorkflowError("Reserved stock changed; delivery was not completed");
+      }
     }
 
-    await tx.deliveryOrder.update({ where: { id }, data: { status: "DONE" } });
+    const changed = await tx.deliveryOrder.updateMany({
+      where: { id, status: "READY", pickedAt: { not: null }, packedAt: { not: null } },
+      data: { status: "DONE" },
+    });
+    if (changed.count !== 1) {
+      throw new DeliveryOrderWorkflowError("Delivery Order changed; reload before validating");
+    }
 
     for (const line of order.lines) {
       await tx.stockMovement.create({
@@ -240,7 +267,11 @@ export async function validateDeliveryOrderAction(id: string): Promise<ActionSta
         },
       });
     }
-  });
+    });
+  } catch (error) {
+    if (error instanceof DeliveryOrderWorkflowError) return { error: error.message };
+    throw error;
+  }
 
   revalidateDeliveryPaths(id);
   return { success: "Delivery Order validated — stock updated" };
@@ -249,7 +280,8 @@ export async function validateDeliveryOrderAction(id: string): Promise<ActionSta
 export async function cancelDeliveryOrderAction(id: string): Promise<ActionState> {
   await requireAuth();
 
-  await prisma.$transaction(async (tx) => {
+  try {
+    await prisma.$transaction(async (tx) => {
     const order = await tx.deliveryOrder.findUnique({
       where: { id },
       select: {
@@ -258,9 +290,9 @@ export async function cancelDeliveryOrderAction(id: string): Promise<ActionState
         lines: { select: { productId: true, quantity: true } },
       },
     });
-    if (!order) throw new Error("Delivery Order not found");
-    if (order.status === "DONE") throw new Error("Cannot cancel a completed Delivery Order");
-    if (order.status === "CANCELED") throw new Error("Delivery Order is already canceled");
+    if (!order) throw new DeliveryOrderWorkflowError("Delivery Order not found");
+    if (order.status === "DONE") throw new DeliveryOrderWorkflowError("Cannot cancel a completed Delivery Order");
+    if (order.status === "CANCELED") throw new DeliveryOrderWorkflowError("Delivery Order is already canceled");
 
     if (order.status === "READY") {
       const demand = aggregateDemand(order.lines.map((line) => ({
@@ -276,12 +308,24 @@ export async function cancelDeliveryOrderAction(id: string): Promise<ActionState
           },
           data: { reserved: { decrement: line.quantity } },
         });
-        if (update.count !== 1) throw new Error("Reserved stock changed; order could not be canceled");
+        if (update.count !== 1) {
+          throw new DeliveryOrderWorkflowError("Reserved stock changed; order could not be canceled");
+        }
       }
     }
 
-    await tx.deliveryOrder.update({ where: { id }, data: { status: "CANCELED" } });
-  });
+    const changed = await tx.deliveryOrder.updateMany({
+      where: { id, status: order.status },
+      data: { status: "CANCELED" },
+    });
+    if (changed.count !== 1) {
+      throw new DeliveryOrderWorkflowError("Delivery Order changed; reload before canceling");
+    }
+    });
+  } catch (error) {
+    if (error instanceof DeliveryOrderWorkflowError) return { error: error.message };
+    throw error;
+  }
 
   revalidateDeliveryPaths(id);
   return { success: "Delivery Order canceled" };

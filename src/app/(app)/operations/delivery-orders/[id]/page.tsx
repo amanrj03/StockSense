@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MdArrowBack } from "react-icons/md";
 import StatusBadge from "@/components/ui/StatusBadge";
+import DeliveryOrderActions from "@/components/delivery-orders/DeliveryOrderActions";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,8 @@ export default async function DeliveryOrderDetailPage(
   );
   const lineStates = order.lines.map((line) => {
     const freeToUse = availability.get(line.productId) ?? 0;
-    return { line, freeToUse, shortfall: Number(line.quantity) > freeToUse };
+    const availableForOrder = freeToUse + (order.status === "READY" ? Number(line.quantity) : 0);
+    return { line, availableForOrder, shortfall: Number(line.quantity) > availableForOrder };
   });
 
   return (
@@ -104,7 +106,7 @@ export default async function DeliveryOrderDetailPage(
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {lineStates.map(({ line, freeToUse, shortfall }) => (
+            {lineStates.map(({ line, availableForOrder, shortfall }) => (
               <tr key={line.id} className={shortfall && order.status !== "DONE" ? "bg-red-50/70 dark:bg-red-950/20" : "bg-card"}>
                 <td className="px-4 py-3 font-medium text-foreground">
                   {line.product.name}
@@ -112,7 +114,7 @@ export default async function DeliveryOrderDetailPage(
                 </td>
                 <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{line.product.sku}</td>
                 <td className={`px-4 py-3 text-right tabular-nums ${shortfall && order.status !== "DONE" ? "font-semibold text-red-700 dark:text-red-300" : "text-muted-foreground"}`}>
-                  {freeToUse.toLocaleString()}
+                  {availableForOrder.toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-right font-medium tabular-nums text-foreground">
                   {Number(line.quantity).toLocaleString()}
@@ -123,6 +125,13 @@ export default async function DeliveryOrderDetailPage(
           </tbody>
         </table>
       </section>
+
+      <DeliveryOrderActions
+        id={order.id}
+        status={order.status}
+        pickedAt={order.pickedAt}
+        packedAt={order.packedAt}
+      />
     </div>
   );
 }

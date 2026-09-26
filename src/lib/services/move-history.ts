@@ -19,12 +19,11 @@ function locationLabel(location: { shortCode: string; warehouse: { shortCode: st
   return location ? `${location.warehouse.shortCode}/${location.shortCode}` : "—";
 }
 
-export async function getMoveHistory(searchTerm = ""): Promise<MoveHistoryRow[]> {
+export async function getMoveHistory(searchTerm = "", pagination?: { skip: number; take: number }): Promise<{ rows: MoveHistoryRow[]; total: number }> {
   const term = searchTerm.trim();
   const contains = (value: string) => ({ contains: value, mode: "insensitive" as const });
 
-  const movements = await prisma.stockMovement.findMany({
-    where: term
+  const where = term
       ? {
           OR: [
             { receipt: { is: { reference: contains(term) } } },
@@ -35,8 +34,13 @@ export async function getMoveHistory(searchTerm = ""): Promise<MoveHistoryRow[]>
             { adjustment: { is: { reference: contains(term) } } },
           ],
         }
-      : undefined,
+      : undefined;
+  const [total, movements] = await Promise.all([
+    prisma.stockMovement.count({ where }),
+    prisma.stockMovement.findMany({
+    where,
     orderBy: { createdAt: "desc" },
+    ...(pagination ? { skip: pagination.skip, take: pagination.take } : {}),
     include: {
       product: { select: { name: true, sku: true } },
       fromLocation: { include: { warehouse: { select: { shortCode: true } } } },
@@ -53,9 +57,9 @@ export async function getMoveHistory(searchTerm = ""): Promise<MoveHistoryRow[]>
       },
       adjustment: { select: { reference: true, status: true } },
     },
-  });
+  })]);
 
-  return movements.map((movement) => {
+  const rows = movements.map((movement) => {
     const reference = movement.receipt?.reference
       ?? movement.deliveryOrder?.reference
       ?? movement.transfer?.reference
@@ -96,8 +100,9 @@ export async function getMoveHistory(searchTerm = ""): Promise<MoveHistoryRow[]>
       status,
       product: movement.product.name,
       sku: movement.product.sku,
-      direction,
+      direction: direction as "IN" | "OUT",
       movementType: movement.movementType,
     };
   });
+  return { rows, total };
 }

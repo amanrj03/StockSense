@@ -2,6 +2,8 @@ import { MdArrowDownward, MdArrowUpward, MdSearch, MdViewKanban, MdViewList } fr
 import StatusBadge from "@/components/ui/StatusBadge";
 import { getMoveHistory } from "@/lib/services/move-history";
 import Link from "next/link";
+import Pagination from "@/components/ui/Pagination";
+import { pageWindow, parsePage } from "@/lib/list-query";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +18,14 @@ export default async function MoveHistoryPage({ searchParams }: { searchParams: 
   const params = await searchParams;
   const query = firstParam(params.q).trim();
   const view = firstParam(params.view) === "kanban" ? "kanban" : "list";
-  const rows = await getMoveHistory(query);
+  const page = parsePage(params.page);
+  const history = await getMoveHistory(query);
+  const pagination = pageWindow(page, history.total);
+  const rows = view === "list" ? (await getMoveHistory(query, pagination)).rows : history.rows;
   const viewHref = (nextView: "list" | "kanban") => {
     const search = new URLSearchParams();
     if (query) search.set("q", query);
+    if (pagination.currentPage > 1) search.set("page", String(pagination.currentPage));
     if (nextView !== "list") search.set("view", nextView);
     const suffix = search.toString();
     return `/move-history${suffix ? `?${suffix}` : ""}`;
@@ -109,6 +115,7 @@ export default async function MoveHistoryPage({ searchParams }: { searchParams: 
           })}
         </div>
       )}
+      {view === "list" && <Pagination pathname="/move-history" page={pagination.currentPage} totalPages={pagination.totalPages} params={{ q: query }} />}
     </div>
   );
 }

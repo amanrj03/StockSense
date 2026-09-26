@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { MdEdit, MdDelete, MdAdd, MdLocationOn } from "react-icons/md";
 import { deleteLocationAction } from "@/lib/actions/location";
 import LocationDialog from "./LocationDialog";
+import Pagination from "@/components/ui/Pagination";
 
 interface Warehouse { id: string; name: string; shortCode: string }
 interface Location {
@@ -17,9 +18,13 @@ interface Location {
 interface Props {
   locations: Location[];
   warehouses: Warehouse[];
+  query: string;
+  warehouseId: string;
+  page: number;
+  totalPages: number;
 }
 
-export default function LocationsTable({ locations, warehouses }: Props) {
+export default function LocationsTable({ locations, warehouses, query, warehouseId, page, totalPages }: Props) {
   const [dialog, setDialog] = useState<{ mode: "create" | "edit"; location?: Location } | null>(null);
   const [isPending, startTransition] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -41,7 +46,8 @@ export default function LocationsTable({ locations, warehouses }: Props) {
         </p>
       )}
 
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <form method="get" className="flex flex-wrap items-center gap-2"><input name="q" defaultValue={query} placeholder="Search locations" className="rounded-md border border-input bg-background px-3 py-2 text-sm" /><select name="warehouseId" defaultValue={warehouseId} className="rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="">All warehouses</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.name}</option>)}</select><button type="submit" className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted">Filter</button></form>
         <p className="text-sm text-muted-foreground">{locations.length} location{locations.length !== 1 ? "s" : ""}</p>
         <button
           onClick={() => setDialog({ mode: "create" })}
@@ -115,6 +121,7 @@ export default function LocationsTable({ locations, warehouses }: Props) {
           onClose={() => setDialog(null)}
         />
       )}
+      <Pagination pathname="/settings/locations" page={page} totalPages={totalPages} params={{ q: query, warehouseId }} />
     </div>
   );
 }

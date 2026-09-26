@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { MdEdit, MdDelete, MdAdd, MdBusiness } from "react-icons/md";
 import { deleteWarehouseAction } from "@/lib/actions/warehouse";
 import WarehouseDialog from "./WarehouseDialog";
+import Pagination from "@/components/ui/Pagination";
 
 interface Warehouse {
   id: string;
@@ -13,7 +14,7 @@ interface Warehouse {
   _count: { locations: number };
 }
 
-export default function WarehousesTable({ warehouses }: { warehouses: Warehouse[] }) {
+export default function WarehousesTable({ warehouses, query, page, totalPages }: { warehouses: Warehouse[]; query: string; page: number; totalPages: number }) {
   const [dialog, setDialog] = useState<{ mode: "create" | "edit"; warehouse?: Warehouse } | null>(null);
   const [isPending, startTransition] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -35,7 +36,8 @@ export default function WarehousesTable({ warehouses }: { warehouses: Warehouse[
         </p>
       )}
 
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <form method="get" className="flex items-center gap-2"><input name="q" defaultValue={query} placeholder="Search warehouses" className="rounded-md border border-input bg-background px-3 py-2 text-sm" /><button type="submit" className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted">Filter</button></form>
         <p className="text-sm text-muted-foreground">{warehouses.length} warehouse{warehouses.length !== 1 ? "s" : ""}</p>
         <button
           onClick={() => setDialog({ mode: "create" })}
@@ -107,6 +109,7 @@ export default function WarehousesTable({ warehouses }: { warehouses: Warehouse[
           onClose={() => setDialog(null)}
         />
       )}
+      <Pagination pathname="/settings/warehouses" page={page} totalPages={totalPages} params={{ q: query }} />
     </div>
   );
 }

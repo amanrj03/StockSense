@@ -2,12 +2,26 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { MdAdd } from "react-icons/md";
+import { MdSearch } from "react-icons/md";
+import Pagination from "@/components/ui/Pagination";
+import { firstParam, pageWindow, parsePage } from "@/lib/list-query";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReceiptsPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function ReceiptsPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const query = firstParam(params.q).trim();
+  const status = firstParam(params.status);
+  const where = { ...(query ? { OR: [{ reference: { contains: query, mode: "insensitive" as const } }, { contact: { contains: query, mode: "insensitive" as const } }] } : {}), ...(status ? { status: status as "DRAFT" | "READY" | "DONE" | "CANCELED" } : {}) };
+  const total = await prisma.receipt.count({ where });
+  const pagination = pageWindow(parsePage(params.page), total);
   const receipts = await prisma.receipt.findMany({
+    where,
     orderBy: { createdAt: "desc" },
+    skip: pagination.skip,
+    take: pagination.take,
     include: {
       toLocation: {
         include: { warehouse: { select: { shortCode: true } } },
@@ -36,6 +50,12 @@ export default async function ReceiptsPage() {
           <MdAdd size={18} /> NEW
         </Link>
       </div>
+
+      <form method="get" className="mb-4 flex flex-wrap items-center gap-2 border-y border-border py-3">
+        <div className="flex min-w-56 flex-1 items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5 sm:max-w-md"><MdSearch size={18} className="text-muted-foreground" /><input name="q" defaultValue={query} placeholder="Search reference or vendor" className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></div>
+        <select name="status" defaultValue={status} className="rounded-md border border-input bg-background px-3 py-2 text-sm"><option value="">All statuses</option><option value="DRAFT">Draft</option><option value="READY">Ready</option><option value="DONE">Done</option><option value="CANCELED">Canceled</option></select>
+        <button type="submit" className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted">Filter</button>
+      </form>
 
       {receipts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
@@ -100,6 +120,7 @@ export default async function ReceiptsPage() {
           </table>
         </div>
       )}
+      <Pagination pathname="/operations/receipts" page={pagination.currentPage} totalPages={pagination.totalPages} params={{ q: query, status }} />
     </div>
   );
 }

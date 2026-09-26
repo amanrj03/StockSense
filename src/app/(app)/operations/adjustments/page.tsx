@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { MdAdd, MdSearch, MdViewKanban, MdViewList } from "react-icons/md";
+import Pagination from "@/components/ui/Pagination";
+import { pageWindow, parsePage } from "@/lib/list-query";
 
 export const dynamic = "force-dynamic";
 
@@ -16,17 +18,22 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
   const params = await searchParams;
   const query = firstParam(params.q).trim();
   const view = firstParam(params.view) === "kanban" ? "kanban" : "list";
+  const page = parsePage(params.page);
+  const where = query
+    ? {
+        OR: [
+          { reference: { contains: query, mode: "insensitive" as const } },
+          { product: { name: { contains: query, mode: "insensitive" as const } } },
+          { product: { sku: { contains: query, mode: "insensitive" as const } } },
+        ],
+      }
+    : undefined;
+  const total = await prisma.stockAdjustment.count({ where });
+  const pagination = pageWindow(page, total);
   const adjustments = await prisma.stockAdjustment.findMany({
-    where: query
-      ? {
-          OR: [
-            { reference: { contains: query, mode: "insensitive" } },
-            { product: { name: { contains: query, mode: "insensitive" } } },
-            { product: { sku: { contains: query, mode: "insensitive" } } },
-          ],
-        }
-      : undefined,
+    where,
     orderBy: { createdAt: "desc" },
+    ...(view === "list" ? { skip: pagination.skip, take: pagination.take } : {}),
     include: {
       product: { select: { name: true, sku: true, unitOfMeasure: true } },
       location: { include: { warehouse: { select: { shortCode: true } } } },
@@ -36,6 +43,7 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
   const viewHref = (nextView: "list" | "kanban") => {
     const search = new URLSearchParams();
     if (query) search.set("q", query);
+    if (pagination.currentPage > 1) search.set("page", String(pagination.currentPage));
     if (nextView !== "list") search.set("view", nextView);
     const suffix = search.toString();
     return `/operations/adjustments${suffix ? `?${suffix}` : ""}`;
@@ -123,6 +131,7 @@ export default async function AdjustmentsPage({ searchParams }: { searchParams: 
           })}
         </div>
       )}
+      {view === "list" && <Pagination pathname="/operations/adjustments" page={pagination.currentPage} totalPages={pagination.totalPages} params={{ q: query }} />}
     </div>
   );
 }

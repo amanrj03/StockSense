@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import Link from "next/link";
 import {
   MdSearch,
@@ -34,15 +34,10 @@ interface ProductStock {
   entries: StockEntry[];
 }
 
-export default function StockTable({ products }: { products: ProductStock[] }) {
-  const [search, setSearch] = useState("");
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+interface Props { products: ProductStock[]; query: string; stockStatus: string }
 
-  const filtered = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase())
-  );
+export default function StockTable({ products, query, stockStatus }: Props) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   function toggleExpand(id: string) {
     setExpanded((prev) => {
@@ -60,24 +55,23 @@ export default function StockTable({ products }: { products: ProductStock[] }) {
   return (
     <div>
       {/* Search */}
-      <div className="mb-4 flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5 max-w-xs">
-        <MdSearch size={16} className="shrink-0 text-muted-foreground" />
-        <input
-          type="search"
-          placeholder="Search by name or SKU…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-          aria-label="Search stock"
-        />
-      </div>
+      <form method="get" className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex min-w-52 items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5">
+          <MdSearch size={16} className="shrink-0 text-muted-foreground" />
+          <input type="search" name="q" defaultValue={query} placeholder="Search by name or SKU…" className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" aria-label="Search stock" />
+        </div>
+        <select name="stockStatus" defaultValue={stockStatus} className="rounded-md border border-input bg-background px-3 py-2 text-sm" aria-label="Filter stock status">
+          <option value="ALL">All stock</option><option value="IN_STOCK">In stock</option><option value="LOW">Low stock</option><option value="OUT">Out of stock</option>
+        </select>
+        <button type="submit" className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted">Filter</button>
+      </form>
 
-      {filtered.length === 0 ? (
+      {products.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
           <p className="text-sm font-medium text-foreground">
-            {search ? "No products match your search" : "No stock records yet"}
+            {query || stockStatus !== "ALL" ? "No products match these filters" : "No stock records yet"}
           </p>
-          {!search && (
+          {!query && stockStatus === "ALL" && (
             <p className="mt-1 text-xs text-muted-foreground">
               Stock is created automatically when a Receipt is validated.
             </p>
@@ -100,11 +94,11 @@ export default function StockTable({ products }: { products: ProductStock[] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map((p) => {
+              {products.map((p) => {
                 const low = isLowStock(p);
                 const open = expanded.has(p.id);
                 return (
-                  <>
+                  <Fragment key={p.id}>
                     {/* Product summary row */}
                     <tr
                       key={p.id}
@@ -160,7 +154,7 @@ export default function StockTable({ products }: { products: ProductStock[] }) {
                         </td>
                       </tr>
                     ))}
-                  </>
+                  </Fragment>
                 );
               })}
             </tbody>

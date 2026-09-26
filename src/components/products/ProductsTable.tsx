@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { MdEdit, MdDelete, MdAdd, MdInventory2, MdSearch } from "react-icons/md";
 import { deleteProductAction } from "@/lib/actions/product";
 import ProductDialog from "./ProductDialog";
+import Pagination from "@/components/ui/Pagination";
 
 interface Category { id: string; name: string }
 interface Product {
@@ -16,19 +17,12 @@ interface Product {
   reorderQty: number | null;
 }
 
-interface Props { products: Product[]; categories: Category[] }
+interface Props { products: Product[]; categories: Category[]; query: string; categoryId: string; page: number; totalPages: number }
 
-export default function ProductsTable({ products, categories }: Props) {
+export default function ProductsTable({ products, categories, query, categoryId, page, totalPages }: Props) {
   const [dialog, setDialog] = useState<{ mode: "create" | "edit"; product?: Product } | null>(null);
-  const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  const filtered = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku.toLowerCase().includes(search.toLowerCase())
-  );
 
   function handleDelete(id: string, name: string) {
     if (!confirm(`Delete product "${name}"?`)) return;
@@ -47,17 +41,17 @@ export default function ProductsTable({ products, categories }: Props) {
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Search */}
-        <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5 max-w-xs">
-          <MdSearch size={16} className="shrink-0 text-muted-foreground" />
-          <input
-            type="search"
-            placeholder="Search by name or SKU…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-            aria-label="Search products"
-          />
-        </div>
+        <form method="get" className="flex flex-1 flex-wrap items-center gap-2 sm:max-w-2xl">
+          <div className="flex min-w-52 flex-1 items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5">
+            <MdSearch size={16} className="shrink-0 text-muted-foreground" />
+            <input type="search" name="q" defaultValue={query} placeholder="Search by name or SKU…" className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" aria-label="Search products" />
+          </div>
+          <select name="categoryId" defaultValue={categoryId} className="rounded-md border border-input bg-background px-3 py-2 text-sm">
+            <option value="">All categories</option>
+            {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+          </select>
+          <button type="submit" className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted">Filter</button>
+        </form>
         <button
           onClick={() => setDialog({ mode: "create" })}
           className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -66,13 +60,13 @@ export default function ProductsTable({ products, categories }: Props) {
         </button>
       </div>
 
-      {filtered.length === 0 ? (
+      {products.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border py-16 text-center">
           <MdInventory2 size={40} className="text-muted-foreground/40" />
           <p className="mt-3 text-sm font-medium text-foreground">
-            {search ? "No products match your search" : "No products yet"}
+            {query || categoryId ? "No products match these filters" : "No products yet"}
           </p>
-          {!search && <p className="mt-1 text-xs text-muted-foreground">Create your first product to get started.</p>}
+          {!query && !categoryId && <p className="mt-1 text-xs text-muted-foreground">Create your first product to get started.</p>}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
@@ -89,7 +83,7 @@ export default function ProductsTable({ products, categories }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map((p) => (
+              {products.map((p) => (
                 <tr key={p.id} className="bg-card hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3 font-medium text-foreground">{p.name}</td>
                   <td className="px-4 py-3">
@@ -129,6 +123,7 @@ export default function ProductsTable({ products, categories }: Props) {
           onClose={() => setDialog(null)}
         />
       )}
+      <Pagination pathname="/products" page={page} totalPages={totalPages} params={{ q: query, categoryId }} />
     </div>
   );
 }

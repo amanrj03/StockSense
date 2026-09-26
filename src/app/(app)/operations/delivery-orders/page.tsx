@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { MdAdd, MdSearch, MdViewKanban, MdViewList } from "react-icons/md";
+import Pagination from "@/components/ui/Pagination";
+import { pageWindow, parsePage } from "@/lib/list-query";
 
 export const dynamic = "force-dynamic";
 
@@ -21,16 +23,14 @@ export default async function DeliveryOrdersPage({
   const params = await searchParams;
   const query = firstParam(params.q).trim();
   const view = firstParam(params.view) === "kanban" ? "kanban" : "list";
+  const page = parsePage(params.page);
+  const where = query ? { OR: [{ reference: { contains: query, mode: "insensitive" as const } }, { contact: { contains: query, mode: "insensitive" as const } }] } : undefined;
+  const total = await prisma.deliveryOrder.count({ where });
+  const pagination = pageWindow(page, total);
   const orders = await prisma.deliveryOrder.findMany({
-    where: query
-      ? {
-          OR: [
-            { reference: { contains: query, mode: "insensitive" } },
-            { contact: { contains: query, mode: "insensitive" } },
-          ],
-        }
-      : undefined,
+    where,
     orderBy: [{ scheduleDate: "asc" }, { createdAt: "desc" }],
+    ...(view === "list" ? { skip: pagination.skip, take: pagination.take } : {}),
     include: {
       fromLocation: {
         include: { warehouse: { select: { shortCode: true } } },
@@ -42,6 +42,7 @@ export default async function DeliveryOrdersPage({
   const viewHref = (nextView: "list" | "kanban") => {
     const search = new URLSearchParams();
     if (query) search.set("q", query);
+    if (pagination.currentPage > 1) search.set("page", String(pagination.currentPage));
     if (nextView !== "list") search.set("view", nextView);
     const suffix = search.toString();
     return `/operations/delivery-orders${suffix ? `?${suffix}` : ""}`;
@@ -168,6 +169,7 @@ export default async function DeliveryOrdersPage({
           })}
         </div>
       )}
+      {view === "list" && <Pagination pathname="/operations/delivery-orders" page={pagination.currentPage} totalPages={pagination.totalPages} params={{ q: query }} />}
     </div>
   );
 }

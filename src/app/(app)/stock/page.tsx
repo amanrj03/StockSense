@@ -1,9 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import StockTable from "@/components/stock/StockTable";
+import Pagination from "@/components/ui/Pagination";
+import { firstParam, pageWindow, parsePage } from "@/lib/list-query";
 
 export const dynamic = "force-dynamic";
 
-export default async function StockPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+export default async function StockPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  const query = firstParam(params.q).trim().toLowerCase();
+  const stockStatus = ["ALL", "IN_STOCK", "LOW", "OUT"].includes(firstParam(params.stockStatus)) ? firstParam(params.stockStatus) : "ALL";
   // Fetch all products with their stock entries across all locations
   const products = await prisma.product.findMany({
     orderBy: { name: "asc" },
@@ -57,6 +64,12 @@ export default async function StockPage() {
   const lowStockCount = shaped.filter(
     (p) => p.reorderLevel != null && p.totalOnHand <= p.reorderLevel
   ).length;
+  const filtered = shaped.filter((product) => {
+    const matchesQuery = !query || product.name.toLowerCase().includes(query) || product.sku.toLowerCase().includes(query);
+    const matchesStatus = stockStatus === "ALL" || (stockStatus === "OUT" && product.totalOnHand === 0) || (stockStatus === "LOW" && product.reorderLevel != null && product.totalOnHand <= product.reorderLevel) || (stockStatus === "IN_STOCK" && product.totalOnHand > 0);
+    return matchesQuery && matchesStatus;
+  });
+  const pagination = pageWindow(parsePage(params.page), filtered.length);
 
   return (
     <div>
@@ -73,7 +86,8 @@ export default async function StockPage() {
           </span>
         )}
       </div>
-      <StockTable products={shaped} />
+      <StockTable products={filtered.slice(pagination.skip, pagination.skip + pagination.take)} query={query} stockStatus={stockStatus} />
+      <Pagination pathname="/stock" page={pagination.currentPage} totalPages={pagination.totalPages} params={{ q: query, stockStatus }} />
     </div>
   );
 }

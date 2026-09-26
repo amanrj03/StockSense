@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import StatusBadge from "@/components/ui/StatusBadge";
 import { MdAdd, MdSearch, MdViewKanban, MdViewList } from "react-icons/md";
+import Pagination from "@/components/ui/Pagination";
+import { pageWindow, parsePage } from "@/lib/list-query";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +18,14 @@ export default async function InternalTransfersPage({ searchParams }: { searchPa
   const params = await searchParams;
   const query = firstParam(params.q).trim();
   const view = firstParam(params.view) === "kanban" ? "kanban" : "list";
+  const page = parsePage(params.page);
+  const where = query ? { reference: { contains: query, mode: "insensitive" as const } } : undefined;
+  const total = await prisma.internalTransfer.count({ where });
+  const pagination = pageWindow(page, total);
   const transfers = await prisma.internalTransfer.findMany({
-    where: query ? { reference: { contains: query, mode: "insensitive" } } : undefined,
+    where,
     orderBy: [{ scheduleDate: "asc" }, { createdAt: "desc" }],
+    ...(view === "list" ? { skip: pagination.skip, take: pagination.take } : {}),
     include: {
       sourceLocation: { include: { warehouse: { select: { shortCode: true } } } },
       destinationLocation: { include: { warehouse: { select: { shortCode: true } } } },
@@ -29,6 +36,7 @@ export default async function InternalTransfersPage({ searchParams }: { searchPa
   const viewHref = (nextView: "list" | "kanban") => {
     const search = new URLSearchParams();
     if (query) search.set("q", query);
+    if (pagination.currentPage > 1) search.set("page", String(pagination.currentPage));
     if (nextView !== "list") search.set("view", nextView);
     const suffix = search.toString();
     return `/operations/internal-transfers${suffix ? `?${suffix}` : ""}`;
@@ -113,6 +121,7 @@ export default async function InternalTransfersPage({ searchParams }: { searchPa
           })}
         </div>
       )}
+      {view === "list" && <Pagination pathname="/operations/internal-transfers" page={pagination.currentPage} totalPages={pagination.totalPages} params={{ q: query }} />}
     </div>
   );
 }

@@ -34,7 +34,7 @@ export default function ProductDialog({ product, categories, onClose }: Props) {
       ref={dialogRef}
       onClose={onClose}
       aria-labelledby="product-dialog-title"
-      className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-lg backdrop:bg-black/40"
+      className="fixed left-1/2 top-1/2 m-0 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-lg backdrop:bg-black/40"
     >
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <h2 id="product-dialog-title" className="text-base font-semibold text-foreground">

@@ -20,15 +20,16 @@ export default function TopHeader({ onMenuToggle }: TopHeaderProps) {
       </button>
 
       {/* Search */}
-      <div className="flex flex-1 items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5 max-w-md">
-        <MdSearch size={18} className="shrink-0 text-muted-foreground" />
+      <form action="/search" method="get" role="search" className="flex flex-1 items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5 max-w-md">
+        <MdSearch size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
         <input
           type="search"
-          placeholder="Search..."
+          name="q"
+          placeholder="Search products, references, contacts..."
           className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           aria-label="Global search"
         />
-      </div>
+      </form>
 
       <div className="ml-auto flex items-center gap-1">
         {/* Notifications */}

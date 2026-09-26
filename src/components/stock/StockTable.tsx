@@ -46,7 +46,8 @@ export default function StockTable({ products }: { products: ProductStock[] }) {
   function toggleExpand(id: string) {
     setExpanded((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -105,13 +106,13 @@ export default function StockTable({ products }: { products: ProductStock[] }) {
                     {/* Product summary row */}
                     <tr
                       key={p.id}
-                      className={`bg-card transition-colors hover:bg-muted/30 cursor-pointer ${low ? "bg-red-50/40 dark:bg-red-900/10" : ""}`}
-                      onClick={() => p.entries.length > 0 && toggleExpand(p.id)}
-                      aria-expanded={open}
+                      className={`bg-card transition-colors hover:bg-muted/30 ${low ? "bg-red-50/40 dark:bg-red-900/10" : ""}`}
                     >
                       <td className="px-4 py-3 text-muted-foreground">
                         {p.entries.length > 0 && (
-                          open ? <MdExpandLess size={16} /> : <MdExpandMore size={16} />
+                          <button type="button" onClick={() => toggleExpand(p.id)} aria-expanded={open} aria-label={`${open ? "Collapse" : "Expand"} ${p.name} location stock`} className="rounded p-1 hover:bg-muted hover:text-foreground">
+                            {open ? <MdExpandLess size={16} aria-hidden="true" /> : <MdExpandMore size={16} aria-hidden="true" />}
+                          </button>
                         )}
                       </td>
                       <td className="px-4 py-3">

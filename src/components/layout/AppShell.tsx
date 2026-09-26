@@ -9,11 +9,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-full min-h-screen">
+      <a href="#main-content" className="sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:not-sr-only focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-foreground focus:shadow-lg">
+        Skip to main content
+      </a>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex flex-1 flex-col lg:overflow-hidden">
-        <TopHeader onMenuToggle={() => setSidebarOpen((v) => !v)} />
-        <main className="flex-1 overflow-y-auto bg-background p-4 sm:p-6">
+        <TopHeader sidebarOpen={sidebarOpen} onMenuToggle={() => setSidebarOpen((v) => !v)} />
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto bg-background p-4 outline-none sm:p-6">
           {children}
         </main>
       </div>

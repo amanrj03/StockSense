@@ -4,15 +4,19 @@ import { MdMenu, MdSearch, MdNotificationsNone, MdPerson } from "react-icons/md"
 import Link from "next/link";
 
 interface TopHeaderProps {
+  sidebarOpen: boolean;
   onMenuToggle: () => void;
 }
 
-export default function TopHeader({ onMenuToggle }: TopHeaderProps) {
+export default function TopHeader({ sidebarOpen, onMenuToggle }: TopHeaderProps) {
   return (
     <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b border-border bg-background px-3 shadow-sm sm:gap-3 sm:px-4">
       {/* Mobile menu button */}
       <button
+        type="button"
         onClick={onMenuToggle}
+        aria-expanded={sidebarOpen}
+        aria-controls="primary-sidebar"
         className="lg:hidden rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         aria-label="Toggle navigation"
       >

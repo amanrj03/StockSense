@@ -33,13 +33,14 @@ export default function LocationDialog({ location, warehouses, defaultWarehouseI
     <dialog
       ref={dialogRef}
       onClose={onClose}
+      aria-labelledby="location-dialog-title"
       className="max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-lg backdrop:bg-black/40"
     >
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <h2 className="text-base font-semibold text-foreground">
+        <h2 id="location-dialog-title" className="text-base font-semibold text-foreground">
           {location ? "Edit Location" : "New Location"}
         </h2>
-        <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close">
+        <button type="button" onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close">
           <MdClose size={20} />
         </button>
       </div>
